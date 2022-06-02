@@ -1,0 +1,203 @@
+{{define "head"}}
+<title>{{.SiteName}}</title>
+
+<style type="text/css">
+h2 {
+	font-weight: normal;
+}
+#pricing.content-container div.form-container #payment-form {
+	display: block !important;
+}
+#pricing #signup-form table {
+	max-width: inherit !important;
+	width: 100%;
+}
+#pricing #payment-form table {
+	margin-top: 0 !important;
+	max-width: inherit !important;
+	width: 100%;
+}
+tr.subscription {
+	border-spacing: 0;
+}
+#pricing.content-container tr.subscription button {
+	margin-top: 0 !important;
+	margin-bottom: 0 !important;
+	width: 100%;
+}
+#pricing tr.subscription td {
+	padding: 0 0.5em;
+}
+#pricing table.billing > tbody > tr > td:first-child {
+	vertical-align: middle !important;
+}
+.billing-section {
+	display: none;
+}
+.billing-section.bill-me {
+	display: table-row;
+}
+#btn-create {
+	color: white !important;
+}
+#total-price {
+	padding-left: 0.5em;
+}
+#alias-site.demo {
+	color: #999;
+}
+#alias-site {
+	text-align: left;
+	margin: 0.5em 0;
+}
+form dd {
+	margin: 0;
+}
+.banner-container {
+	text-align: left;
+}
+.banner-container h1 {
+	margin-top: 0;
+	max-width: 8em;
+}
+.or {
+	margin-bottom: 2.5em !important;
+}
+</style>
+{{end}}
+{{define "content"}}
+<div id="pricing" class="content-container wide-form">
+
+<div class="row">
+	<div class="banner-container">
+		{{.Banner}}
+		<p><a href="{{if .Content}}#more{{else}}/about{{end}}">Learn more...</a></p>
+	</div>
+
+	<div{{if not .OpenRegistration}} style="padding: 2em 0;"{{end}}>
+		{{ if .OpenRegistration }}
+			{{template "oauth-buttons" .}}
+		{{if not .DisablePasswordAuth}}
+		{{if .Flashes}}<ul class="errors">
+			{{range .Flashes}}<li class="urgent">{{.}}</li>{{end}}
+		</ul>{{end}}
+
+		<div id="billing">
+			<form action="/auth/signup" method="POST" id="signup-form" onsubmit="return signup()">
+				<dl class="billing">
+					<label>
+						<dt>Username</dt>
+						<dd>
+							<input type="text" id="alias" name="alias" style="width: 100%; box-sizing: border-box;" tabindex="1" autofocus {{if .ForcedLanding}}disabled{{end}} />
+							{{if .Federation}}<p id="alias-site" class="demo">@<strong>your-username</strong>@{{.FriendlyHost}}</p>{{else}}<p id="alias-site" class="demo">{{.FriendlyHost}}/<strong>your-username</strong></p>{{end}}
+						</dd>
+					</label>
+					<label>
+						<dt>Password</dt>
+						<dd><input type="password" id="password" name="pass" autocomplete="new-password" placeholder="" tabindex="2" style="width: 100%; box-sizing: border-box;" {{if .ForcedLanding}}disabled{{end}} /></dd>
+					</label>
+					<label>
+						<dt>Email (optional)</dt>
+						<dd><input type="email" name="email" id="email" style="letter-spacing: 1px; width: 100%; box-sizing: border-box;" placeholder="me@example.com" tabindex="3" {{if .ForcedLanding}}disabled{{end}} /></dd>
+					</label>
+					<dt>
+						<button id="btn-create" type="submit" style="margin-top: 0" {{if .ForcedLanding}}disabled{{end}}>Create blog</button>
+					</dt>
+				</dl>
+			</form>
+		</div>
+		{{end}}
+		{{ else }}
+		<p style="font-size: 1.3em; margin: 1rem 0;">Registration is currently closed.</p>
+		<p>You can always sign up on <a href="https://writefreely.org/instances">another instance</a>.</p>
+		{{ end }}
+	</div>
+</div>
+
+{{if .Content}}
+<a name="more"></a><hr style="margin: 1em auto 3em;" />
+{{end}}
+</div>
+
+{{ if .Content }}
+<div class="content-container snug">
+	{{.Content}}
+</div>
+{{ end }}
+
+<script type="text/javascript" src="/js/h.js"></script>
+<script type="text/javascript">
+function signup() {
+	var $pass = document.getElementById('password');
+
+	// Validate input
+	if (!aliasOK) {
+		var $a = $alias;
+		$a.el.className = 'error';
+		$a.el.focus();
+		$a.el.scrollIntoView();
+		return false;
+	}
+
+	if ($pass.value == "") {
+		var $a = $pass;
+		$a.className = 'error';
+		$a.focus();
+		$a.scrollIntoView();
+		return false;
+	}
+
+	var $btn = document.getElementById('btn-create');
+	$btn.disabled = true;
+	$btn.value = 'Creating...';
+	return true;
+}
+
+var $alias = H.getEl('alias');
+var $aliasSite = document.getElementById('alias-site');
+var aliasOK = true;
+var typingTimer;
+var doneTypingInterval = 750;
+var doneTyping = function() {
+	// Check on username
+	var alias = $alias.el.value;
+	if (alias != "") {
+		var params = {
+			username: alias
+		};
+		var http = new XMLHttpRequest();
+		http.open("POST", '/api/alias', true);
+
+		// Send the proper header information along with the request
+		http.setRequestHeader("Content-type", "application/json");
+
+		http.onreadystatechange = function() {
+			if (http.readyState == 4) {
+				data = JSON.parse(http.responseText);
+				if (http.status == 200) {
+					aliasOK = true;
+					$alias.removeClass('error');
+					$aliasSite.className = $aliasSite.className.replace(/(?:^|\s)demo(?!\S)/g, '');
+					$aliasSite.className = $aliasSite.className.replace(/(?:^|\s)error(?!\S)/g, '');
+					$aliasSite.innerHTML = '{{ if .Federation }}@<strong>' + data.data + '</strong>@{{.FriendlyHost}}{{ else }}{{.FriendlyHost}}/<strong>' + data.data + '</strong>/{{ end }}';
+				} else {
+					aliasOK = false;
+					$alias.setClass('error');
+					$aliasSite.className = 'error';
+					$aliasSite.textContent = data.error_msg;
+				}
+			}
+		}
+		http.send(JSON.stringify(params));
+	} else {
+		$aliasSite.className += ' demo';
+		$aliasSite.innerHTML = '{{ if .Federation }}@<strong>your-username</strong>@{{.FriendlyHost}}{{ else }}{{.FriendlyHost}}/<strong>your-username</strong>/{{ end }}';
+	}
+};
+$alias.on('keyup input', function() {
+	clearTimeout(typingTimer);
+	typingTimer = setTimeout(doneTyping, doneTypingInterval);
+});
+</script>
+
+{{end}}

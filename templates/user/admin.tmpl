@@ -1,0 +1,68 @@
+{{define "admin"}}
+{{template "header" .}}
+
+<style type="text/css">
+h2 {font-weight: normal;}
+ul.pagenav {list-style: none;}
+form {
+	margin: 0 0 2em;
+}
+form dt {
+	line-height: inherit;
+}
+.ui.divider:not(.vertical):not(.horizontal) {
+	border-top: 1px solid rgba(34,36,38,.15);
+	border-bottom: 1px solid rgba(255,255,255,.1);
+}
+.ui.divider {
+	margin: 1rem 0;
+	line-height: 1;
+	height: 0;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .05em;
+	color: rgba(0,0,0,.85);
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	-webkit-tap-highlight-color: transparent;
+	font-size: 1rem;
+}
+.invisible {
+	display: none;
+}
+p.docs {
+	font-size: 0.86em;
+}
+.stats {
+	font-size: 1.2em;
+	margin: 1em 0;
+}
+.num {
+	font-weight: bold;
+	font-size: 1.5em;
+}
+</style>
+
+<div class="content-container snug">
+	{{template "admin-header" .}}
+
+	{{if .Message}}<p>{{.Message}}</p>{{end}}
+
+	<div class="row stats">
+		<div><span class="num">{{largeNumFmt .UsersCount}}</span> {{pluralize "user" "users" .UsersCount}}</div>
+		<div><span class="num">{{largeNumFmt .CollectionsCount}}</span> {{pluralize "blog" "blogs" .CollectionsCount}}</div>
+		<div><span class="num">{{largeNumFmt .PostsCount}}</span> {{pluralize "post" "posts" .PostsCount}}</div>
+	</div>
+
+</div>
+
+<script>
+history.replaceState(null, "", "/admin"+window.location.hash);
+</script>
+
+{{template "footer" .}}
+
+{{template "body-end" .}}
+{{end}}

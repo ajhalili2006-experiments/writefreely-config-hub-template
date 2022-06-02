@@ -1,0 +1,227 @@
+{{define "articles"}}
+{{template "header" .}}
+<style type="text/css">
+	a.loading {
+		font-style: italic;
+		color: #666;
+	}
+	#move-tmpl {
+		display: none;
+	}
+</style>
+
+<div class="snug content-container">
+
+{{if .Flashes}}<ul class="errors">
+	{{range .Flashes}}<li class="urgent">{{.}}</li>{{end}}
+</ul>{{end}}
+{{if .Silenced}}
+	{{template "user-silenced"}}
+{{end}}
+
+<h1 id="posts-header">Drafts</h1>
+
+{{ if .AnonymousPosts }}
+	<p>These are your draft posts. You can share them individually (without a blog) or move them to your blog when you're ready.</p>
+
+	<div id="anon-posts" class="atoms posts">
+	{{ range $el := .AnonymousPosts }}<div id="post-{{.ID}}" class="post">
+		<h3><a href="/{{if $.SingleUser}}d/{{end}}{{.ID}}" itemprop="url">{{.DisplayTitle}}</a></h3>
+		<h4>
+			<date datetime="{{.Created}}" pubdate itemprop="datePublished" content="{{.Created}}">{{.DisplayDate}}</date>
+			<a class="action" href="/{{if $.SingleUser}}d/{{end}}{{.ID}}/edit">edit</a>
+			<a class="delete action" href="/{{.ID}}" onclick="delPost(event, '{{.ID}}', true)">delete</a>
+			{{ if $.Collections }}
+			{{if gt (len $.Collections) 1}}<div class="action flat-select">
+				<select id="move-{{.ID}}" onchange="postActions.multiMove(this, '{{.ID}}', {{if $.SingleUser}}true{{else}}false{{end}})" title="Move this post to one of your blogs">
+					<option style="display:none"></option>
+					{{range $.Collections}}<option value="{{.Alias}}">{{.DisplayTitle}}</option>{{end}}
+				</select>
+				<label for="move-{{.ID}}">move to...</label>
+				<img class="ic-18dp" src="/img/ic_down_arrow_dark@2x.png" />
+			</div>{{else}}
+			{{range $.Collections}}
+			<a class="action" href="/{{$el.ID}}" title="Publish this post to your blog '{{.DisplayTitle}}'" onclick="postActions.move(this, '{{$el.ID}}', '{{.Alias}}', {{if $.SingleUser}}true{{else}}false{{end}});return false">move to {{.DisplayTitle}}</a>
+			{{end}}
+			{{end}}
+			{{ end }}
+		</h4>
+		{{if .Summary}}<p>{{.SummaryHTML}}</p>{{end}}
+	</div>{{end}}
+</div>
+{{if eq (len .AnonymousPosts) 10}}<p id="load-more-p"><a href="#load">Load more...</a></p>{{end}}
+{{ else }}<div id="no-posts-published">
+	<p>Your anonymous and draft posts will show up here once you've published some. You'll be able to share them individually (without a blog) or move them to a blog when you're ready.</p>
+	{{if not .SingleUser}}<p>Alternatively, see your blogs and their posts on your <a href="/me/c/">Blogs</a> page.</p>{{end}}
+
+	<p class="text-cta"><a href="{{if .SingleUser}}/me/new{{else}}/{{end}}">Start writing</a></p></div>{{ end }}
+
+<div id="moving"></div>
+
+<h2 id="unsynced-posts-header" style="display: none">unsynced posts</h2>
+<div id="unsynced-posts-info" style="margin-top: 1em"></div>
+<div id="unsynced-posts" class="atoms"></div>
+
+</div>
+
+{{ if .Collections }}
+	<div id="move-tmpl">
+		{{if gt (len .Collections) 1}}
+			<div class="action flat-select">
+				<select id="move-POST_ID" onchange="postActions.multiMove(this, 'POST_ID', {{if .SingleUser}}true{{else}}false{{end}})" title="Move this post to one of your blogs">
+					<option style="display:none"></option>
+					{{range .Collections}}<option value="{{.Alias}}">{{.DisplayTitle}}</option>{{end}}
+				</select>
+				<label for="move-POST_ID">move to...</label>
+				<img class="ic-18dp" src="/img/ic_down_arrow_dark@2x.png" />
+			</div>
+		{{else}}
+			{{range .Collections}}
+				<a class="action" href="/POST_ID" title="Publish this post to your blog '{{.DisplayTitle}}'" onclick="postActions.move(this, 'POST_ID', '{{.Alias}}', {{if $.SingleUser}}true{{else}}false{{end}});return false">move to {{.DisplayTitle}}</a>
+			{{end}}
+		{{end}}
+	</div>
+{{ end }}
+
+<script src="/js/h.js"></script>
+<script src="/js/postactions.js"></script>
+<script>
+var auth = true;
+function postsLoaded(n) {
+	if (n == 0) {
+		return;
+	}
+	document.getElementById('unsynced-posts-header').style.display = 'block';
+	var syncing = false;
+	var $pInfo = document.getElementById('unsynced-posts-info');
+	$pInfo.className = 'alert info';
+	var plural = n != 1;
+	$pInfo.innerHTML = '<p>You have <strong>'+n+'</strong> post'+(plural?'s that aren\'t':' that isn\'t')+' synced to your account yet. <a href="#" id="btn-sync">Sync '+(plural?'them':'it')+' now</a>.</p>';
+
+	var $noPosts = document.getElementById('no-posts-published');
+	if ($noPosts != null) {
+		$noPosts.style.display = 'none';
+		document.getElementById('posts-header').style.display = 'none';
+	}
+
+	H.getEl('btn-sync').on('click', function(e) {
+		e.preventDefault();
+		if (syncing) {
+			return;
+		}
+		var http = new XMLHttpRequest();
+		var params = [];
+		var posts = JSON.parse(H.get('posts', '[]'));
+		if (posts.length > 0) {
+			for (var i=0; i<posts.length; i++) {
+				params.push({id: posts[i].id, token: posts[i].token});
+			}
+		}
+
+		this.style.fontWeight = 'bold';
+		this.innerText = 'Syncing '+(plural?'them':'it')+' now...';
+
+		http.open("POST", "/api/posts/claim", true);
+
+		// Send the proper header information along with the request
+		http.setRequestHeader("Content-type", "application/json");
+
+		http.onreadystatechange = function() {
+			if (http.readyState == 4) {
+				syncing = false;
+				this.innerText = 'Importing '+(plural?'them':'it')+' now...';
+
+				if (http.status == 200) {
+					var res = JSON.parse(http.responseText);
+					if (res.data.length > 0) {
+						if (res.data.length != posts.length) {
+							// TODO: handle something that royally fucked up
+							console.error("Request and result array length didn't match!");
+							return;
+						}
+						for (var i=0; i<res.data.length; i++) {
+							if (res.data[i].code == 200) {
+								// Post successfully claimed.
+								for (var j=0; j<posts.length; j++) {
+									// Find post in local store
+									if (posts[j].id == res.data[i].post.id) {
+										// Remove this post
+										posts.splice(j, 1);
+										break;
+									}
+								}
+							} else {
+								for (var j=0; j<posts.length; j++) {
+									// Find post in local store
+									if (posts[j].id == res.data[i].id) {
+										// Note the error in the local post
+										posts[j].error = res.data[i].error_msg;
+										break;
+									}
+								}
+							}
+						}
+						H.set('posts', JSON.stringify(posts));
+						location.reload();
+					}
+				} else {
+					// TODO: handle error visually (option to retry)
+					console.error("Didn't work at all, man.");
+					this.style.fontWeight = 'normal';
+					this.innerText = 'Sync '+(plural?'them':'it')+' now';
+				}
+			}
+		}
+		http.send(JSON.stringify(params));
+		syncing = true;
+	});
+}
+
+var $loadMore = H.getEl("load-more-p");
+var curPage = 1;
+var isLoadingMore = false;
+function loadMorePosts() {
+	if (isLoadingMore === true) {
+		return;
+	}
+	var $link = this;
+	isLoadingMore = true;
+
+	$link.className = 'loading';
+	$link.textContent = 'Loading posts...';
+
+	var $posts = H.getEl("anon-posts");
+
+	curPage++;
+
+	var http = new XMLHttpRequest();
+	var url = "/api/me/posts?anonymous=1&page=" + curPage;
+	http.open("GET", url, true);
+	http.setRequestHeader("Content-type", "application/json");
+	http.onreadystatechange = function() {
+		if (http.readyState == 4) {
+			if (http.status == 200) {
+				var data = JSON.parse(http.responseText);
+				for (var i=0; i<data.data.length; i++) {
+					$posts.el.appendChild(createPostEl(data.data[i], true));
+				}
+				if (data.data.length < 10) {
+					$loadMore.el.parentNode.removeChild($loadMore.el);
+				}
+			} else {
+				alert("Failed to load more posts. Please try again.");
+				curPage--;
+			}
+			isLoadingMore = false;
+			$link.className = '';
+			$link.textContent = 'Load more...';
+		}
+	}
+	http.send();
+}
+$loadMore.el.querySelector('a').addEventListener('click', loadMorePosts);
+</script>
+<script src="/js/posts.js"></script>
+
+{{template "footer" .}}
+{{end}}
