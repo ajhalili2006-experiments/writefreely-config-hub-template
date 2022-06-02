@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -xe
 
-if [[ "$EUID" != "0"]]; then
+if [[ "$EUID" != "0" ]]; then
    echo "error: Run this script again as root to install the binary to /usr/local/bin!"
 fi
 
