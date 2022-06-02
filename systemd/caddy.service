@@ -1,0 +1,16 @@
+[Unit]
+Description=Caddy webserver
+Documentation=https://caddyserver.com/
+After=network.target
+
+[Service]
+User=ajhalili2006
+WorkingDirectory=/var/ajhalili2006/writefreely-ajhalili2006-prod
+LimitNOFILE=4096
+PIDFile=/var/run/caddy/caddy.pid
+ExecStart=/usr/local/bin/caddy run --config ./Caddyfile --watch --pidfile=/var/run/caddy/caddy.pid
+Restart=on-failure
+StartLimitInterval=600
+
+[Install]
+WantedBy=multi-user.target
