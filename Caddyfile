@@ -1,0 +1,10 @@
+# Change mydomain.tld into your own domain over here. We also recommend to edit this file
+# based on your needs.
+mydomain.tld {
+    reverse_proxy localhost:8080
+    tls {
+       # Get an API token from https://dash.cloudflare.com/profile/api-tokens with scoped DNS editing perms
+       # to your domain. If not using Cloudflare DNS, please update this section
+       dns cloudflare yourTokenHere
+    }
+}
